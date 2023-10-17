@@ -7,19 +7,22 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.borutoapp.presentation.screens.splash.SplashScreen
+import com.example.borutoapp.presentation.screens.welcome.WelcomeScreen
 import com.example.borutoapp.utils.Constants.ARGUMENT_HERO_KEY
 
 @Composable
 fun NavigationHost(navHostController: NavHostController) {
     NavHost(
         navController = navHostController,
-        startDestination = Screen.Splash.route
+        startDestination = Screen.Welcome.route
     ) {
         composable(Screen.Splash.route) {
             SplashScreen(navHostController = navHostController)
         }
 
-        composable(Screen.Welcome.route) {}
+        composable(Screen.Welcome.route) {
+            WelcomeScreen(navHostController = navHostController)
+        }
         composable(Screen.Home.route) {}
         composable(Screen.Details.route, arguments = listOf(navArgument(ARGUMENT_HERO_KEY) {
             type = NavType.IntType
