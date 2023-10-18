@@ -3,6 +3,6 @@ package com.example.borutoapp.domain.repository
 import kotlinx.coroutines.flow.Flow
 
 interface DataStoreOperations {
-    suspend fun saveOnboardingValue(completed: Boolean)
-    fun getOnboardingValue(): Flow<Boolean>
+    suspend fun saveOnBoardingState(completed: Boolean)
+    fun readOnBoardingState(): Flow<Boolean>
 }
