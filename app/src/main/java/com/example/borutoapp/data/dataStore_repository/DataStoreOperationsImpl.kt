@@ -28,13 +28,13 @@ class DataStoreOperationsImpl(
         val onBoardingKey = booleanPreferencesKey(name = ONBOARDING_KEY)
     }
 
-    override suspend fun saveOnboardingValue(completed: Boolean) {
+    override suspend fun saveOnBoardingState(completed: Boolean) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.onBoardingKey] = completed
         }
     }
 
-    override fun getOnboardingValue(): Flow<Boolean> {
+    override fun readOnBoardingState(): Flow<Boolean> {
         return dataStore.data
             .catch { exception ->
                 if (exception is IOException)
