@@ -147,7 +147,7 @@ fun FinishButton(
             visible = pagerState.currentPage == 2
         ) {
             Button(
-                onClick = { onClick },
+                onClick = { onClick() },
                 colors = ButtonDefaults.buttonColors(
                     backgroundColor = MaterialTheme.colors.finishButtonBackgroundColor,
                     contentColor = Color.White
