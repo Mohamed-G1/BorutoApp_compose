@@ -3,7 +3,9 @@ package com.example.borutoapp.domain.model
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.example.borutoapp.utils.Constants.HERO_ENTITY_TABLE_NAME
+import kotlinx.serialization.Serializable
 
+@Serializable
 @Entity(tableName = HERO_ENTITY_TABLE_NAME)
 data class Hero(
     @PrimaryKey(autoGenerate = false)
