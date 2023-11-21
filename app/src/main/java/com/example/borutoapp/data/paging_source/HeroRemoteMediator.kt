@@ -9,9 +9,10 @@ import com.example.borutoapp.data.local.HeroDatabase
 import com.example.borutoapp.data.remote.ApiService
 import com.example.borutoapp.domain.model.Hero
 import com.example.borutoapp.domain.model.HeroRemoteKeys
+import javax.inject.Inject
 
 @OptIn(ExperimentalPagingApi::class)
-class HeroRemoteMediator(
+class HeroRemoteMediator @Inject constructor(
     private val apiService: ApiService,
     private val heroDatabase: HeroDatabase
 ) : RemoteMediator<Int, Hero>() {
@@ -23,35 +24,31 @@ class HeroRemoteMediator(
         loadType: LoadType,
         state: PagingState<Int, Hero>
     ): MediatorResult {
-        return try {
             /**
              * calculating the page size */
+        return try {
             val page = when (loadType) {
                 LoadType.REFRESH -> {
-                    val remoteKey = getRemoteKeyClosetRecentPosition(state)
-                    remoteKey?.nextPage?.minus(1) ?: 1
+                    val remoteKeys = getRemoteKeyClosetRecentPosition(state)
+                    remoteKeys?.nextPage?.minus(1) ?: 1
                 }
-
                 LoadType.PREPEND -> {
-                    val remoteKey = getRemoteKeyForFirstItem(state)
-                    val prevPage = remoteKey?.prevPage
+                    val remoteKeys = getRemoteKeyForFirstItem(state)
+                    val prevPage = remoteKeys?.prevPage
                         ?: return MediatorResult.Success(
-                            endOfPaginationReached = remoteKey != null
+                            endOfPaginationReached = remoteKeys != null
                         )
                     prevPage
                 }
-
                 LoadType.APPEND -> {
-                    val remoteKey = getRemoteKeyForLastItem(state)
-                    val nextPage = remoteKey?.nextPage
+                    val remoteKeys = getRemoteKeyForLastItem(state)
+                    val nextPage = remoteKeys?.nextPage
                         ?: return MediatorResult.Success(
-                            endOfPaginationReached = remoteKey != null
+                            endOfPaginationReached = remoteKeys != null
                         )
                     nextPage
                 }
-
             }
-
 
             val response = apiService.getAllHeroes(page = page)
             if (response.heroes.isNotEmpty()) {
@@ -59,52 +56,55 @@ class HeroRemoteMediator(
                  * since is this the first state that paging with enter through so we delete the tables
                  * just to make sure that the tables is clean
                  * */
-                if (loadType == LoadType.REFRESH) {
-                    heroDatabase.withTransaction {
-                        heroDao.getAllHeroes()
+
+                heroDatabase.withTransaction {
+                    if (loadType == LoadType.REFRESH) {
+                        heroDao.deleteAllHeroes()
                         remoteKeysDao.deleteAllRemoteKeys()
                     }
+                    val prevPage = response.prevPage
+                    val nextPage = response.nextPage
+                    val keys = response.heroes.map { hero ->
+                        HeroRemoteKeys(
+                            id = hero.id,
+                            prevPage = prevPage,
+                            nextPage = nextPage,
+                        )
+                    }
+                    remoteKeysDao.addAllRemoteKeys(heroRemoteKeys = keys)
+                    heroDao.addHeroes(heroes = response.heroes)
                 }
-
-                val prevPage = response.prevPage
-                val nextPage = response.nextPage
-                val keys = response.heroes.map { hero ->
-                    HeroRemoteKeys(
-                        id = hero.id,
-                        prevPage = prevPage,
-                        nextPage = nextPage
-                    )
-                }
-
-                heroDao.addHeroes(heroes = response.heroes)
-                remoteKeysDao.addAllRemoteKeys(heroRemoteKeys = keys)
             }
-            MediatorResult.Success(endOfPaginationReached = response.nextPage != null)
-
+            MediatorResult.Success(endOfPaginationReached = response.nextPage == null)
         } catch (e: Exception) {
-            MediatorResult.Error(e)
+            return MediatorResult.Error(e)
         }
-
 
     }
 
     private suspend fun getRemoteKeyClosetRecentPosition(state: PagingState<Int, Hero>): HeroRemoteKeys? {
         return state.anchorPosition?.let { position ->
             state.closestItemToPosition(anchorPosition = position)?.id?.let { id ->
-                heroDatabase.heroRemoteKey().getRemoteKeys(heroId = id)
+                remoteKeysDao.getRemoteKeys(heroId = id)
             }
         }
     }
 
-    private suspend fun getRemoteKeyForFirstItem(state: PagingState<Int, Hero>): HeroRemoteKeys? {
-        return state.pages.firstOrNull { it.data.isNotEmpty() }?.data?.firstOrNull()?.let { hero ->
-            remoteKeysDao.getRemoteKeys(heroId = hero.id)
-        }
+    private suspend fun getRemoteKeyForFirstItem(
+        state: PagingState<Int, Hero>
+    ): HeroRemoteKeys? {
+        return state.pages.firstOrNull { it.data.isNotEmpty() }?.data?.firstOrNull()
+            ?.let { hero ->
+                remoteKeysDao.getRemoteKeys(heroId = hero.id)
+            }
     }
 
-    private suspend fun getRemoteKeyForLastItem(state: PagingState<Int, Hero>): HeroRemoteKeys? {
-        return state.pages.lastOrNull { it.data.isNotEmpty() }?.data?.lastOrNull()?.let { hero ->
-            heroDatabase.heroRemoteKey().getRemoteKeys(heroId = hero.id)
-        }
+    private suspend fun getRemoteKeyForLastItem(
+        state: PagingState<Int, Hero>
+    ): HeroRemoteKeys? {
+        return state.pages.lastOrNull { it.data.isNotEmpty() }?.data?.lastOrNull()
+            ?.let { hero ->
+                remoteKeysDao.getRemoteKeys(heroId = hero.id)
+            }
     }
 }

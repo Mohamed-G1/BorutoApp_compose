@@ -25,7 +25,7 @@ fun NavigationHost(navHostController: NavHostController) {
             WelcomeScreen(navHostController = navHostController)
         }
         composable(Screen.Home.route) {
-            HomeScreen()
+            HomeScreen(navHostController= navHostController)
         }
         composable(Screen.Details.route, arguments = listOf(navArgument(ARGUMENT_HERO_KEY) {
             type = NavType.IntType
