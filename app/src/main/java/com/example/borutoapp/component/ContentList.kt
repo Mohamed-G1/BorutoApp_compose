@@ -21,6 +21,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -31,6 +32,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
 import coil.compose.AsyncImage
@@ -40,7 +42,6 @@ import com.example.borutoapp.domain.model.Hero
 import com.example.borutoapp.ui.theme.LARGE_PADDING
 import com.example.borutoapp.ui.theme.MEDIUM_PADDING
 import com.example.borutoapp.ui.theme.SMALL_PADDING
-import com.example.borutoapp.ui.theme.Shapes
 import com.example.borutoapp.ui.theme.topAppBarContentColor
 import com.example.borutoapp.utils.Constants
 
@@ -50,41 +51,51 @@ fun ContentList(
     navHostController: NavHostController
 ) {
     Log.d("HEROESLIST", heroes.itemCount.toString())
+    val result = heroPagingResult(heroes = heroes)
 
-    LazyColumn(
-        contentPadding = PaddingValues(SMALL_PADDING),
-        verticalArrangement = Arrangement.spacedBy(SMALL_PADDING)
-    )
-    {
-//        items(heroes.itemCount) { index ->
-//            val item = heroes[index]
-//            item?.let { hero ->
-//                HeroItem(hero = hero, navHostController = navHostController)
-//
-//            }
-//
-//        }
-
-
-//        items(
-//            items = heroes,
-//            key = { hero ->
-//                hero.id
-//            }
-//        ) { hero ->
-//            hero?.let {
-//                HeroItem(hero = it, navController = navController)
-//            }
-//        }
-
-        items(
-            count = heroes.itemCount,
-            key = heroes.itemKey { it.id }
-        ) { index ->
-            val item = heroes[index]
-            item?.let { hero ->
-                HeroItem(hero = hero, navHostController = navHostController)
+    if (result){
+        LazyColumn(
+            contentPadding = PaddingValues(SMALL_PADDING),
+            verticalArrangement = Arrangement.spacedBy(SMALL_PADDING)
+        )
+        {
+            items(
+                count = heroes.itemCount,
+                key = heroes.itemKey { it.id }
+            ) { index ->
+                val item = heroes[index]
+                item?.let { hero ->
+                    HeroItem(hero = hero, navHostController = navHostController)
+                }
             }
+        }
+    }
+}
+
+
+@Composable
+fun heroPagingResult(
+    heroes: LazyPagingItems<Hero>
+): Boolean {
+    heroes.apply {
+        val error = when {
+            loadState.refresh is LoadState.Error -> loadState.refresh as LoadState.Error
+            loadState.prepend is LoadState.Error -> loadState.prepend as LoadState.Error
+            loadState.append is LoadState.Error -> loadState.append as LoadState.Error
+            else -> null
+        }
+
+        return when {
+            loadState.refresh is LoadState.Loading -> {
+                ShimmerEffect()
+                false
+            }
+
+            error != null -> {
+                false
+            }
+
+            else -> true
         }
     }
 
@@ -98,13 +109,13 @@ fun HeroItem(
     Box(
         modifier = Modifier
             .height(400.dp)
+            .clip(shape = RoundedCornerShape(LARGE_PADDING))
 //            .clickable { navHostController.navigate(Screen.Details.passHeroId(heroId = hero.id)) }
         ,
         contentAlignment = Alignment.BottomStart
     )
     {
         Surface(
-            shape = Shapes.large
         ) {
             AsyncImage(
                 modifier = Modifier.fillMaxSize(),
@@ -124,10 +135,6 @@ fun HeroItem(
                 .fillMaxHeight(0.4f)
                 .fillMaxWidth(),
             color = Color.Black.copy(alpha = ContentAlpha.medium),
-            shape = RoundedCornerShape(
-                bottomStart = LARGE_PADDING,
-                bottomEnd = LARGE_PADDING
-            ),
 
             ) {
             Column(
@@ -174,7 +181,7 @@ fun HeroItem(
     }
 }
 
-@Preview(showBackground = true)
+@Preview
 @Composable
 fun HeroItemPreview() {
     HeroItem(

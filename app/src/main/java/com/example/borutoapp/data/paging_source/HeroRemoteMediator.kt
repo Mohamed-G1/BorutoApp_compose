@@ -20,18 +20,38 @@ class HeroRemoteMediator @Inject constructor(
     private val heroDao = heroDatabase.heroDao()
     private val remoteKeysDao = heroDatabase.heroRemoteKey()
 
+
+    /**
+     * this function initialize -> is cached the response for s specific time
+     * when the time is does not finished this function will load from the local DB, and
+     * if the time is expired will call let the mediator to call the api
+     * */
+    override suspend fun initialize(): InitializeAction {
+        val currentTime = System.currentTimeMillis()
+        val lastUpdated = remoteKeysDao.getRemoteKeys(1)?.lastUpdated ?: 0L
+        val cacheTimeOut = 1440 // because one day has 1440 mins
+        val diffMinutes = (currentTime - lastUpdated) / 1000 / 60
+        return if (diffMinutes <= cacheTimeOut) {
+            InitializeAction.SKIP_INITIAL_REFRESH
+        } else {
+            InitializeAction.LAUNCH_INITIAL_REFRESH
+        }
+    }
+
+
     override suspend fun load(
         loadType: LoadType,
         state: PagingState<Int, Hero>
     ): MediatorResult {
-            /**
-             * calculating the page size */
+        /**
+         * calculating the page size */
         return try {
             val page = when (loadType) {
                 LoadType.REFRESH -> {
                     val remoteKeys = getRemoteKeyClosetRecentPosition(state)
                     remoteKeys?.nextPage?.minus(1) ?: 1
                 }
+
                 LoadType.PREPEND -> {
                     val remoteKeys = getRemoteKeyForFirstItem(state)
                     val prevPage = remoteKeys?.prevPage
@@ -40,6 +60,7 @@ class HeroRemoteMediator @Inject constructor(
                         )
                     prevPage
                 }
+
                 LoadType.APPEND -> {
                     val remoteKeys = getRemoteKeyForLastItem(state)
                     val nextPage = remoteKeys?.nextPage
@@ -69,6 +90,7 @@ class HeroRemoteMediator @Inject constructor(
                             id = hero.id,
                             prevPage = prevPage,
                             nextPage = nextPage,
+                            lastUpdated = response.lastUpdated
                         )
                     }
                     remoteKeysDao.addAllRemoteKeys(heroRemoteKeys = keys)
